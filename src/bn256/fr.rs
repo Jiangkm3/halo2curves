@@ -26,6 +26,44 @@ crate::impl_binops_multiplicative!(Fr, Fr);
 crate::field_bits!(Fr);
 crate::serialize_deserialize_primefield!(Fr);
 
+#[cfg(feature = "ark-serialize")]
+mod arkworks_serialize {
+    use super::Fr;
+    use ark_serialize::{
+        CanonicalDeserialize, CanonicalSerialize, Compress, Validate, SerializationError,
+    };
+    use halo2curves::ff::PrimeField; // or crate::ff::PrimeField depending on paths
+    use subtle::CtOption;
+
+    impl CanonicalSerialize for Fr {
+        fn serialize_with_mode<W: ark_serialize::Write>(
+            &self,
+            mut writer: W,
+            _compress: Compress,
+        ) -> Result<(), SerializationError> {
+            writer.write_all(&self.to_repr())?;
+            Ok(())
+        }
+
+        fn serialized_size(&self, _compress: Compress) -> usize {
+            32
+        }
+    }
+
+    impl CanonicalDeserialize for Fr {
+        fn deserialize_with_mode<R: ark_serialize::Read>(
+            mut reader: R,
+            _compress: Compress,
+            _validate: Validate,
+        ) -> Result<Self, SerializationError> {
+            let mut bytes = [0u8; 32];
+            reader.read_exact(&mut bytes)?;
+            let ct: CtOption<Fr> = Fr::from_repr(bytes);
+            ct.into_option().ok_or(SerializationError::InvalidData)
+        }
+    }
+}
+
 #[cfg(feature = "bn256-table")]
 pub use table::FR_TABLE;
 #[cfg(not(feature = "bn256-table"))]
